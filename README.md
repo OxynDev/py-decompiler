@@ -3,6 +3,8 @@
 gxHook decompiler is a program that injects code into a python process and decompiles it from memory which makes it easier to decompile obfuscated programs (for example pyarmor).
 Decompiler work for pyinstaller only !
 tested python version 3.8
+
+pyinject source https://github.com/acureau/pynject
 #### Join us
 https://discord.gg/aBeKqAGmMk
 
