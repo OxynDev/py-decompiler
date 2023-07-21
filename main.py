@@ -25,11 +25,12 @@ class Decompiler:
         if pdata in lib_code:
             open(lib_dir, "w").write(lib_code.replace(pdata, ndata))
             print("(LIB PATCHED) RESTART SCRIPT")
-            os._exit()
+            time.sleep(3)
+            quit()
 
     def get_process_list(self):
 
-        res = subprocess.check_output(["injector/guidedhacking.exe", "scan"])
+        res = subprocess.check_output(["injector/pyinject.exe", "scan"])
         pid_base_regex = re.compile(r'Base: (\S+) \| Version: \S+ \| PID: (\d+)')
         matches = pid_base_regex.findall(res.decode('utf-8'))
         result_list = [{'base': match[0], 'pid': match[1]} for match in matches]
@@ -40,7 +41,7 @@ class Decompiler:
             return False
 
     def inject_code(self, pid: int):
-        subprocess.call(f"injector/guidedhacking.exe {str(pid)} injector/dumper.py")
+        subprocess.call(f"injector/pyinject.exe {str(pid)} injector/dumper.py")
 
     def process_path(self, process_name):
         WMI = GetObject('winmgmts:')
