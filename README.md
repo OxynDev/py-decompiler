@@ -17,6 +17,10 @@ https://discord.gg/aBeKqAGmMk
 
 ## Change log
 ```diff
+v1.0.1 ⋮ 22/07/2023
++ The decompiler has been changed making decompilation better and faster
++ Added executor option
+
 v1.0.0 ⋮ 19/07/2023
 + Released
 ```
