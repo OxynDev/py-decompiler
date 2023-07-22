@@ -1,32 +1,9 @@
-import subprocess, re, os, time, glob , traceback, shutil, inspect, sys, threading, httpx
+import subprocess, re, os, time, shutil, httpx
 from win32com.client import GetObject
-import pydumpck
-
-pdata = r"""        if header_data[0:3] == b'MZ\x90':
-            return FileType.FILE_EXE
-        if header_data[0:4] == b'PYZ\x00':
-            return FileType.FILE_PYZ
-        if header_data[0:4] == b'\x7fELF':
-            return FileType.FILE_ELF
-        if header_data.find(bytes.fromhex('e3' + '0' * 14)) > -1:
-            return FileType.FILE_PYC
-        return FileType.FILE_UNKNOWN"""
-
-ndata = """        return FileType.FILE_PYC"""
 
 class Decompiler:
     def __init__(self):
-        self.patch_pydumpck()
         self.start()
-
-    def patch_pydumpck(self):
-        lib_dir = pydumpck.__file__.split("\\__init__.py")[0] + "\\" + "py_common_dump\\__init__.py"
-        lib_code = open(lib_dir,"r").read()
-        if pdata in lib_code:
-            open(lib_dir, "w").write(lib_code.replace(pdata, ndata))
-            print("(LIB PATCHED) RESTART SCRIPT")
-            time.sleep(3)
-            quit()
 
     def get_process_list(self):
 
@@ -40,8 +17,11 @@ class Decompiler:
         else:
             return False
 
-    def inject_code(self, pid: int):
+    def inject_disassembler_code(self, pid: int):
         subprocess.call(f"injector/pyinject.exe {str(pid)} injector/dumper.py")
+
+    def inject_code(self, pid: int):
+        subprocess.call(f"injector/pyinject.exe {str(pid)} InjCode.py")
 
     def process_path(self, process_name):
         WMI = GetObject('winmgmts:')
@@ -51,67 +31,12 @@ class Decompiler:
                 return p.Properties_[7].Value              
         return False        
 
-    def decompile(self, dir: str):
-        dirs = glob.glob(dir + "dump/*")
-        for i in dirs:
-            files = glob.glob(i + "\\*")
-            for file in files:
-                try:
-                    if file.endswith(".pyc"):
-                        def dec_thread(file,i):
-                            o_dir = file.split(".pyc")[0] + "\\"
-                            print(f" [.] Decompiling " + i.split("\\")[-1] + " " + file.split("\\")[-1])
-                            subprocess.run(f"pydumpck {file} --output {o_dir} --decompile_file", capture_output = False,  text = True, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
-                            os.remove(file)
-                            decompiled_files = glob.glob(o_dir + "*")
-                            for dec_file in decompiled_files:
-                                if dec_file.endswith(".py"):
-                                    os.replace(dec_file, file.split(".pyc")[0] + ".py")
-                                    break
-                            try:
-                                shutil.rmtree(o_dir)
-                            except:
-                                pass
-                            print(" [V] Done " + file.split("\\")[-1])
-                        threading.Thread(target=dec_thread, args=(file,i,)).start()
-                except:
-                    traceback.print_exc()
-
-            for class_object in glob.glob(i + "\\*"):
-                if os.path.isdir(class_object):
-                    class_tree = glob.glob(class_object + "\\*")
-                    for file_method in class_tree:
-
-                        def dec_thread(file_method,class_object):
-                            try:
-                                o_dir = file_method.split(".pyc")[0] + "\\"
-
-                                if not os.path.exists(o_dir):
-                                    os.makedirs(o_dir)
-
-                                print(f" [.] Decompiling " + class_object.split("\\")[-1] + " " + file_method.split("\\")[-1])
-                                subprocess.run(f"pydumpck {file_method} --output {o_dir}", 
-                                            capture_output = False,  text = True, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL
-                                            )
-                                os.remove(file_method)
-                                decompiled_files = glob.glob(o_dir + "*")
-                                for dec_file in decompiled_files:
-                                    if dec_file.endswith(".py"):
-                                        os.replace(dec_file, file_method.split(".pyc")[0] + ".py")
-                                        break
-                                try:
-                                    shutil.rmtree(o_dir)
-                                except:
-                                    pass
-                                print(" [V] Done " + file_method.split("\\")[-1])
-                            except:
-                                traceback.print_exc()
-                        threading.Thread(target=dec_thread, args=(file_method,class_object,)).start()
-            
-
     def start(self):
         os.system("cls")
-        discord = httpx.get("https://pastebin.com/raw/jSkxLZa3").text
+        try:
+            discord = httpx.get("https://pastebin.com/raw/jSkxLZa3").text
+        except:
+            discord == "https://discord.gg/8W6BweksGY"
         os.system("cls")
 
         print("\n",discord, """\n\n    ____      _   _             _    
@@ -133,6 +58,25 @@ class Decompiler:
                 print(f" [{i}] " + process_list[i]['base'])
 
             print("\n")
+            process_res = input(" [>] : ")
+
+            try:
+                int(process_res)
+            except ValueError:
+                os.system("cls")
+                print("\n"," [X] Invalid selection")
+                time.sleep(2)
+                self.start()
+            
+            if (int(process_res) > len(process_list)) or (int(process_res) < 0):
+                os.system("cls")
+                print("\n"," [X] Invalid selection")
+                time.sleep(2)
+                self.start()
+
+            os.system("cls")
+            print("\n")
+            print(" [1] decompiler \n [2] executor","\n\n")
             res = input(" [>] : ")
 
             try:
@@ -142,20 +86,32 @@ class Decompiler:
                 print("\n"," [X] Invalid selection")
                 time.sleep(2)
                 self.start()
-            
-            if (int(res) > len(process_list)) or (int(res) < 0):
+
+            if int(res) == 1:
+                path = self.process_path(process_list[int(process_res)]['base']).split(process_list[int(res)]['base'])[0]
+                try:
+                    shutil.copytree("unpyc", path + "\\unpyc")
+                except:
+                    pass
+                
+                self.inject_disassembler_code(int(process_list[int(res)]['pid']))
+                
+                os.system("cls")
+                print()
+                input(" [V] Decompiler injected")
+                time.sleep(3)
+
+            elif int(res) == 2:
+                os.system("cls")
+                while True:
+                    self.inject_code(int(process_list[int(process_res)]['pid']))
+                    print(" Injected")
+                    input(" Press eneter to inject code.py again")
+                    os.system("cls")
+            else:
                 os.system("cls")
                 print("\n"," [X] Invalid selection")
                 time.sleep(2)
                 self.start()
-
-            self.inject_code(int(process_list[int(res)]['pid']))
-            
-            path = self.process_path(process_list[int(res)]['base']).split(process_list[int(res)]['base'])[0]
-            os.system("cls")
-            print("\n"," [.] Waiting")
-            time.sleep(20)
-
-            self.decompile(path)
 
 Decompiler()

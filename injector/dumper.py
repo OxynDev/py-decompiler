@@ -1,23 +1,40 @@
-import dis
-import marshal
 import random 
 import string
 import os
 import shutil
 import inspect
 import sys
+import importlib.util
+import pathlib
 import traceback
+import threading
 
 class UwUdecompiler:
 
     functions = []
     classes = []
+    unpyc3 = None
 
     def __init__(self) -> None:
+        print(" [V] Decompiler Injected")
         self.all = globals().copy()
+        self.load_unpyc()
         self.create_dirs()
         self.decompile()
-        
+    
+
+    def load_unpyc(self):
+        try:
+            path = str(pathlib.Path().resolve())
+            dis_path = f"{path}\\unpyc\\unpyc\\unpyc3.py"
+            spec = importlib.util.spec_from_file_location("unpyc3", dis_path)
+            self.unpyc3 = importlib.util.module_from_spec(spec)
+            sys.modules["unpyc3"] = self.unpyc3
+            spec.loader.exec_module(self.unpyc3)
+        except:
+            print("Cant load unpyc3 module")
+
+
     def create_dirs(self):
         try:
             shutil.rmtree("dump")
@@ -56,45 +73,44 @@ class UwUdecompiler:
 
 
                         
-    def get_bytecode(self, data, dir):
+    def get_code(self, data, dir):
+        print("X")
         try:
-            bytecode = None
-            name = None
 
             if dir == 'functions':
-                bytecode = dis.Bytecode(self.all[data]) 
-                with open("dump/" + dir + "/" + data + "_" + self.get_id() + ".pyc", 'wb') as file:
-                    file.write(marshal.dumps(bytecode.codeobj))
+                code = self.unpyc3.decompile(self.all[data])
+                print(code)
+                with open("dump/" + dir + "/" + data + "_" + self.get_id() + ".py", 'w') as file:
+                    file.write(str(code))
                     file.close()
-
+                
             elif dir == 'classes':
                 if data != "UwUdecompiler":
                     class_methods = inspect.getmembers(self.all[data], predicate=inspect.isfunction)
                     for method_name, method in class_methods:
-                        bytecode = dis.Bytecode(method) 
-
+                        code = self.unpyc3.decompile(method)
+                        print(code)
                         if not os.path.exists("dump/classes/"+data):
                             os.makedirs("dump/classes/"+data)
 
-                        with open("dump/classes/"+data + "/" + method_name + "_" + self.get_id() + ".pyc", 'wb') as file:
-                            file.write(marshal.dumps(bytecode.codeobj))
+                        with open("dump/classes/"+data + "/" + method_name + "_" + self.get_id() + ".py", 'w') as file:
+                            file.write(str(code))
                             file.close()
-
-
-
 
         except:
             traceback.print_exc()
         
     def save_functions(self):
         self.get_functions()
+        print(self.functions)
         for i in self.functions:
-            self.get_bytecode(i, 'functions')
+            threading.Thread(target=self.get_code, args=(i, 'functions',)).start()
 
     def save_classes(self):
         self.get_classes()
+        print(self.classes)
         for i in self.classes:
-            self.get_bytecode(i, 'classes')
+            threading.Thread(target=self.get_code, args=(i, 'classes',)).start()
 
     def decompile(self):
         self.save_functions()
