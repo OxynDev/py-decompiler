@@ -243,12 +243,10 @@ class Indent:
         self.step = indent_step
 
     def write(self, pattern, *args, **kwargs):
-        try:
-            if args or kwargs:
-                pattern = pattern.format(*args, **kwargs)
-            return self.indent(pattern)
-        except:
-            pass
+        if args or kwargs:
+            pattern = pattern.format(*args, **kwargs)
+        return self.indent(pattern)
+
     def __add__(self, indent_increase):
         return type(self)(self.level + indent_increase, self.step)
 
@@ -307,7 +305,7 @@ class Stack:
         if self._stack:
             val = self._stack.pop()
         else:
-            pass
+            raise Exception('Empty stack popped!')
         self.set_count(val, self.get_count(val) - 1)
         return val
 
@@ -324,10 +322,7 @@ class Stack:
             self._stack.append(val)
 
     def peek(self, count=None):
-        try:
-            return self._stack[-1] if count is None else self._stack[-count:]
-        except:
-            pass
+        return self._stack[-1] if count is None else self._stack[-count:]
 
     def __getitem__(self, x):
         res = Stack()
@@ -740,10 +735,7 @@ class PyExpr:
             dec.suite.add_statement(AssignStatement(chain))
             dec.assignment_chain = []
         else:
-            try:
-                dec.write(str(self))
-            except:
-                pass
+            dec.write(str(self))
 
 
 class PyConst(PyExpr):
@@ -1103,35 +1095,33 @@ class PyCallFunction(PyExpr, AwaitableMixin):
         )
 
     def __str__(self):
-        try:
-            funcstr = self.func.wrap(
-                self.func.precedence < self.precedence
+        funcstr = self.func.wrap(
+            self.func.precedence < self.precedence
+        )
+        if (
+            hasattr(self.args, '__iter__')
+            and len(self.args) == 1
+            and not self.kwargs
+            and not self.varargs
+            and not self.varkw
+        ):
+            arg = self.args[0]
+            if isinstance(arg, PyGenExpr):
+                # Only one pair of brackets arount a single arg genexpr
+                return f"{funcstr}{arg}"
+        args = [x.wrap(x.precedence <= 0) for x in self.args]
+        if self.varargs is not None:
+            args.extend(f"*{varargs}" for varargs in self.varargs)
+        args.extend(
+            "{}={}".format(
+                str(k).replace('\'', ''), v.wrap(v.precedence <= 0)
             )
-            if (
-                hasattr(self.args, '__iter__')
-                and len(self.args) == 1
-                and not self.kwargs
-                and not self.varargs
-                and not self.varkw
-            ):
-                arg = self.args[0]
-                if isinstance(arg, PyGenExpr):
-                    # Only one pair of brackets arount a single arg genexpr
-                    return f"{funcstr}{arg}"
-            args = [x.wrap(x.precedence <= 0) for x in self.args]
-            if self.varargs is not None:
-                args.extend(f"*{varargs}" for varargs in self.varargs)
-            args.extend(
-                "{}={}".format(
-                    str(k).replace('\'', ''), v.wrap(v.precedence <= 0)
-                )
-                for k, v in self.kwargs
-            )
-            if self.varkw is not None:
-                args.extend(f"**{varkw}" for varkw in self.varkw)
-            return f'{self.await_prefix}{funcstr}({", ".join(args)})'
-        except:
-            pass
+            for k, v in self.kwargs
+        )
+        if self.varkw is not None:
+            args.extend(f"**{varkw}" for varkw in self.varkw)
+        return f'{self.await_prefix}{funcstr}({", ".join(args)})'
+
 
 class FunctionDefinition:
     def __init__(
@@ -1458,10 +1448,7 @@ class AssignStatement(PyStatement):
         self.chain = chain
 
     def display(self, indent):
-        try:
-            indent.write(" = ".join(map(str, self.chain)))
-        except:
-            pass
+        indent.write(" = ".join(map(str, self.chain)))
 
     def gen_display(self, seq=()):
         expr = "{} := {}".format(*self.chain[-2:])
@@ -1996,17 +1983,14 @@ class SuiteDecompiler:
             args = (addr,) if opcode < HAVE_ARGUMENT else (addr, arg)
             try:
                 method = getattr(self, opname[opcode])
-                try:
-                    new_addr = method(*args)
-                    if new_addr is self.END_NOW:
-                        break
-                    elif new_addr is None:
-                        new_addr = addr[1]
-                    addr = new_addr
-                except:
-                    pass
+                new_addr = method(*args)
+                if new_addr is self.END_NOW:
+                    break
+                elif new_addr is None:
+                    new_addr = addr[1]
+                addr = new_addr
             except BaseException as e:
-                #traceback.print_exception(BaseException, e, e.__traceback__)
+                traceback.print_exception(BaseException, e, e.__traceback__)
                 addr = None
         return addr
 
@@ -2426,10 +2410,7 @@ class SuiteDecompiler:
             return addr[2]
         else:
             tos2, tos1, tos = self.stack.pop(3)
-            try:
-                self.stack.push(tos, tos2, tos1)
-            except:
-                pass
+            self.stack.push(tos, tos2, tos1)
 
     def DUP_TOP(self, addr):
         self.stack.push(self.stack.peek())
