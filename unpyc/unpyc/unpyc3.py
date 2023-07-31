@@ -485,35 +485,38 @@ class Code:
         jumps = {}
         last_jump = None
         for addr in self:
-            opcode, arg = addr
-            if opcode in pop_jump_if_opcodes:
-                # 3.10 needs a doubled arg (e.g. 14) but any
-                # version lower does not (e.g. 28)
-                jump_addr = self.address(arg * (2 - IS_NOT_310) - 2)
-                if (
-                    jump_addr.opcode in else_jump_opcodes
-                    or jump_addr.opcode is FOR_ITER
-                ):
-                    last_jump = addr
-                    jumps[jump_addr] = addr
-            elif opcode == JUMP_ABSOLUTE:
-                # This case is to deal with some nested ifs such as:
-                # if a:
-                # if b:
-                #         f()
-                #     elif c:
-                #         g()
-                jump_addr = self.address(arg)
-                if jump_addr in jumps:
-                    jumps[addr] = jumps[jump_addr]
-            elif opcode == JUMP_FORWARD:
-                jump_addr = addr[1] + arg
-                if jump_addr in jumps:
-                    jumps[addr] = jumps[jump_addr]
-            elif opcode in stmt_opcodes and last_jump is not None:
-                # This opcode will generate a statement, so it means
-                # that the last POP_JUMP_IF_x was an else-jump
-                jumps[addr] = last_jump
+            try:
+                opcode, arg = addr
+                if opcode in pop_jump_if_opcodes:
+                    # 3.10 needs a doubled arg (e.g. 14) but any
+                    # version lower does not (e.g. 28)
+                    jump_addr = self.address(arg * (2 - IS_NOT_310) - 2)
+                    if (
+                        jump_addr.opcode in else_jump_opcodes
+                        or jump_addr.opcode is FOR_ITER
+                    ):
+                        last_jump = addr
+                        jumps[jump_addr] = addr
+                elif opcode == JUMP_ABSOLUTE:
+                    # This case is to deal with some nested ifs such as:
+                    # if a:
+                    # if b:
+                    #         f()
+                    #     elif c:
+                    #         g()
+                    jump_addr = self.address(arg)
+                    if jump_addr in jumps:
+                        jumps[addr] = jumps[jump_addr]
+                elif opcode == JUMP_FORWARD:
+                    jump_addr = addr[1] + arg
+                    if jump_addr in jumps:
+                        jumps[addr] = jumps[jump_addr]
+                elif opcode in stmt_opcodes and last_jump is not None:
+                    # This opcode will generate a statement, so it means
+                    # that the last POP_JUMP_IF_x was an else-jump
+                    jumps[addr] = last_jump
+            except:
+                pass
         self.else_jumps = set(jumps.values())
 
     def get_suite(
@@ -2058,6 +2061,8 @@ class SuiteDecompiler:
     #
     # All opcode methods in CAPS below.
     #
+
+
 
     def SETUP_LOOP(self, addr: Address, delta):
         jump_addr = addr.jump()
