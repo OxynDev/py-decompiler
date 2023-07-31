@@ -88,13 +88,13 @@ class Decompiler:
                 self.start()
 
             if int(res) == 1:
-                path = self.process_path(process_list[int(process_res)]['base']).split(process_list[int(res)]['base'])[0]
+                path = self.process_path(process_list[int(process_res)]['base']).split(process_list[int(process_res)]['base'])[0]
                 try:
                     shutil.copytree("unpyc", path + "\\unpyc")
                 except:
                     pass
                 
-                self.inject_disassembler_code(int(process_list[int(res)]['pid']))
+                self.inject_disassembler_code(int(process_list[int(process_res)]['pid']))
                 
                 os.system("cls")
                 print()
